@@ -1,18 +1,16 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
-const dirFile = path.join(process.cwd(), "./data.json"); //process.cwd() para que eu não precise digitar todo o caminho da pasta, que não funcionaria bem no docker
+const dirFile = path.join(process.cwd(), "./data.json"); 
 const data = fs.readFileSync(dirFile, 'utf8');
 const timesheetLogs = JSON.parse(data);
 
-//console.log(timesheetLogs.taskName);
-//se minute => 0 add in notValid[]
-//else add in vali
 let validsLogs = [];
 let invalidLogs = [];
 let top3WorkedPercentage = [];
 let totalMinutesOffAllTasks: number = 0;
 let EmployessTop3;
+let mostTaskPerFunc;
 
 for (let i = 0; i < timesheetLogs.length; i++){
 
@@ -26,21 +24,18 @@ for (let i = 0; i < timesheetLogs.length; i++){
     }
 }
 
-// console.log(validsLogs.length)
-// console.log(invalidLogs.length)
-
 
 let timeSLogsbyTaskId: Record<number, {taskName:string, totalMinutes:number}> = {}
 
 for(const validsLog of validsLogs){
     let {taskId, taskName, minutes} = validsLog;
-    if(!timeSLogsbyTaskId[taskId]){// caso a task ainda nao exista, cria a task com o id, nome e minutos
+    if(!timeSLogsbyTaskId[taskId]){
         timeSLogsbyTaskId[taskId]={taskName:taskName, totalMinutes: minutes}
-    }else{//caso ja exista, soma os minutos
+    }else{
         timeSLogsbyTaskId[taskId].totalMinutes += minutes;
     }
 }
-//console.log("tasks:",timeSLogsbyTaskId);
+
 
 
 let  arrayTimeSLogsbyTaskId = Object.entries(timeSLogsbyTaskId)
@@ -53,7 +48,7 @@ let  arrayTimeSLogsbyTaskId = Object.entries(timeSLogsbyTaskId)
 });
 
 for(let i = 0; i < arrayTimeSLogsbyTaskId.length; i++){
-    totalMinutesOffAllTasks += arrayTimeSLogsbyTaskId[i]!.totalMinutes;//! para garantir ao typescritp que o vetor existe 
+    totalMinutesOffAllTasks += arrayTimeSLogsbyTaskId[i]!.totalMinutes;
 }
 
 
@@ -65,24 +60,17 @@ arrayTimeSLogsbyTaskId.sort((a, b)=> {
     return a.totalMinutes - b.totalMinutes
 } );
 
-// console.log("total minutes:", totalMinutesOffAllTasks);
-// console.log("tasks", arrayTimeSLogsbyTaskId);
 
 let mostWorkedTask = arrayTimeSLogsbyTaskId[0];
 
-//console.log("mostWorkedTask:", mostWorkedTask);
 
-// percentage = totalMinutes * 100 / totalMinutesOffAllTasks
-// percentage.toFixed(2)
-
-top3WorkedPercentage = arrayTimeSLogsbyTaskId.slice(0, 3) //slice para pegar primeiros n numeros de um vetor
+top3WorkedPercentage = arrayTimeSLogsbyTaskId.slice(0, 3)
 .map(arrayT =>({
     taskId: arrayT.taskId,
     taskName: arrayT.taskName,
     percentage: ((arrayT.totalMinutes * 100)/ totalMinutesOffAllTasks).toFixed(2)+"%"
 }));
 
-//console.log("top3TasksPercentage:", top3WorkedPercentage);
 
 let employeesTop3: Record <number, {userName: string, totalMinutes: number} > = {}
 
@@ -95,6 +83,8 @@ for (const valids of validsLogs){
         employeesTop3[userId].totalMinutes += minutes;
     }
 }
+
+
 
 let arrayEmployessTop3 = Object.entries(employeesTop3)
 .map(([userId, values])=>{
@@ -121,5 +111,63 @@ EmployessTop3 = arrayEmployessTop3.slice(0, 3)
     totalMinutes: arrayEmp.totalMinutes
 }));
 
-console.log("top3Employees", EmployessTop3);
 
+for (const valids of validsLogs){
+    let{userId, userName, minutes} = valids;
+    
+    if(!employeesTop3[userId]){
+        employeesTop3[userId]={userName: userName, totalMinutes: minutes}
+    }else{
+        employeesTop3[userId].totalMinutes += minutes;
+    }
+}
+
+
+let mostDistinctTaskPerFunc: Record <number,{userName: string, task:number [] }> = {}
+
+for (const valids of validsLogs){
+    let{userId, userName, taskId} = valids;
+    
+    if(!mostDistinctTaskPerFunc[userId]){
+        mostDistinctTaskPerFunc[userId]={userName: userName, task: [taskId]}
+    }else{
+        if(!mostDistinctTaskPerFunc[userId].task.includes(taskId))
+            mostDistinctTaskPerFunc[userId].task.push(taskId);
+    }
+}
+
+let arrayMosDistTask = Object.entries(mostDistinctTaskPerFunc)
+.map(([userId, values]) =>{
+    return{
+        userId: Number(userId),
+        username: values.userName,
+        tasksIds: values.task
+    }
+} )
+
+arrayMosDistTask.sort((a, b)=>{
+    if(b.tasksIds.length !== a.tasksIds.length){
+        return b.tasksIds.length - a.tasksIds.length;
+    }
+    return a.userId -  b.userId
+})
+
+mostTaskPerFunc = arrayMosDistTask.slice(0)
+.map(arrMost =>({
+    userId: arrMost.userId,
+    userName: arrMost.username,
+    distinctTasks: arrMost.tasksIds.length,
+    taskIds: [...arrMost.tasksIds].sort((a, b)=> a- b)
+}))
+
+const result ={
+    totalMinutes: totalMinutesOffAllTasks,
+    tasks: arrayTimeSLogsbyTaskId,
+    mostWorkedTask: mostWorkedTask,
+    top3TasksPercentage: top3WorkedPercentage,
+    top3Employess: EmployessTop3,
+    mostDistinctTaskPerFunc: mostTaskPerFunc[0],
+    ignoredRecords: invalidLogs.length 
+}
+
+fs.writeFileSync("result.json", JSON.stringify(result, null, 2));
