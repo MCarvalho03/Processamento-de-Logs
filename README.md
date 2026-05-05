@@ -6,7 +6,7 @@ Aplicação em **Node.js + TypeScript** que processa um arquivo `data.json` cont
 
 ---
 
-## 🧠 Estratégia
+## Estratégia
 
 Os dados são processados utilizando estruturas como:
 
@@ -85,5 +85,5 @@ result.json
 
 ##  Autor
 
-Maryana Santos de Carvalho
+Maryana Santos de Carvalhoxx'
 
