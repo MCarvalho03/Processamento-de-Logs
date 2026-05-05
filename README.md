@@ -85,5 +85,5 @@ result.json
 
 ##  Autor
 
-Maryana Santos de Carvalhoxx'
+Maryana Santos de Carvalho
 
